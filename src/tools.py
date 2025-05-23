@@ -96,10 +96,10 @@ class ProjectSearchTool(BaseTool):
     name: str = "search_projects"
     description: str = "Search for projects by name. Returns a list of matching projects with their details."
     args_schema: Type[BaseModel] = ProjectSearchInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
     
     def __init__(self, zoho_client: ZohoProjectsClient):
-        super().__init__()
-        self.zoho_client = zoho_client
+        super().__init__(zoho_client=zoho_client)
     
     def _run(self, query: str) -> str:
         try:
@@ -126,10 +126,10 @@ class ProjectDetailsTool(BaseTool):
     name: str = "get_project_details"
     description: str = "Get detailed information about a specific project by its ID."
     args_schema: Type[BaseModel] = ProjectDetailsInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
     
     def __init__(self, zoho_client: ZohoProjectsClient):
-        super().__init__()
-        self.zoho_client = zoho_client
+        super().__init__(zoho_client=zoho_client)
     
     def _run(self, project_id: str) -> str:
         try:
@@ -172,10 +172,10 @@ class CreateProjectTool(BaseTool):
     name: str = "create_project"
     description: str = "Create a new project with specified details."
     args_schema: Type[BaseModel] = CreateProjectInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
     
     def __init__(self, zoho_client: ZohoProjectsClient):
-        super().__init__()
-        self.zoho_client = zoho_client
+        super().__init__(zoho_client=zoho_client)
     
     def _run(self, name: str, description: str = "", start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
         try:
@@ -209,10 +209,10 @@ class TaskSearchTool(BaseTool):
     name: str = "search_tasks"
     description: str = "Search for tasks by name within a specific project."
     args_schema: Type[BaseModel] = TaskSearchInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
     
     def __init__(self, zoho_client: ZohoProjectsClient):
-        super().__init__()
-        self.zoho_client = zoho_client
+        super().__init__(zoho_client=zoho_client)
     
     def _run(self, project_id: str, query: str) -> str:
         try:
@@ -239,10 +239,10 @@ class TaskDetailsTool(BaseTool):
     name: str = "get_task_details"
     description: str = "Get detailed information about a specific task."
     args_schema: Type[BaseModel] = TaskDetailsInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
     
     def __init__(self, zoho_client: ZohoProjectsClient):
-        super().__init__()
-        self.zoho_client = zoho_client
+        super().__init__(zoho_client=zoho_client)
     
     def _run(self, project_id: str, task_id: str) -> str:
         try:
@@ -283,10 +283,10 @@ class CreateTaskTool(BaseTool):
     name: str = "create_task"
     description: str = "Create a new task in a project with specified details."
     args_schema: Type[BaseModel] = CreateTaskInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
     
     def __init__(self, zoho_client: ZohoProjectsClient):
-        super().__init__()
-        self.zoho_client = zoho_client
+        super().__init__(zoho_client=zoho_client)
     
     def _run(self, project_id: str, name: str, description: str = "", start_date: Optional[str] = None, 
              end_date: Optional[str] = None, priority: str = "None", tasklist_id: Optional[str] = None) -> str:
@@ -326,10 +326,10 @@ class UpdateTaskTool(BaseTool):
     name: str = "update_task"
     description: str = "Update an existing task with new information."
     args_schema: Type[BaseModel] = UpdateTaskInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
     
     def __init__(self, zoho_client: ZohoProjectsClient):
-        super().__init__()
-        self.zoho_client = zoho_client
+        super().__init__(zoho_client=zoho_client)
     
     def _run(self, project_id: str, task_id: str, name: Optional[str] = None, 
              description: Optional[str] = None, percent_complete: Optional[int] = None, 
@@ -372,10 +372,10 @@ class GetTaskListsTool(BaseTool):
     name: str = "get_tasklists"
     description: str = "Get all task lists in a specific project."
     args_schema: Type[BaseModel] = TaskListInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
     
     def __init__(self, zoho_client: ZohoProjectsClient):
-        super().__init__()
-        self.zoho_client = zoho_client
+        super().__init__(zoho_client=zoho_client)
     
     def _run(self, project_id: str) -> str:
         try:
@@ -401,10 +401,10 @@ class CreateTaskListTool(BaseTool):
     name: str = "create_tasklist"
     description: str = "Create a new task list in a project."
     args_schema: Type[BaseModel] = CreateTaskListInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
     
     def __init__(self, zoho_client: ZohoProjectsClient):
-        super().__init__()
-        self.zoho_client = zoho_client
+        super().__init__(zoho_client=zoho_client)
     
     def _run(self, project_id: str, name: str, flag: str = "internal") -> str:
         try:
@@ -434,10 +434,10 @@ class GetTimeLogsTool(BaseTool):
     name: str = "get_time_logs"
     description: str = "Get time logs for a specific task."
     args_schema: Type[BaseModel] = TimeLogInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
     
     def __init__(self, zoho_client: ZohoProjectsClient):
-        super().__init__()
-        self.zoho_client = zoho_client
+        super().__init__(zoho_client=zoho_client)
     
     def _run(self, project_id: str, task_id: str) -> str:
         try:
@@ -470,10 +470,10 @@ class AddTimeLogTool(BaseTool):
     name: str = "add_time_log"
     description: str = "Add a time log entry to a specific task."
     args_schema: Type[BaseModel] = AddTimeLogInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
     
     def __init__(self, zoho_client: ZohoProjectsClient):
-        super().__init__()
-        self.zoho_client = zoho_client
+        super().__init__(zoho_client=zoho_client)
     
     def _run(self, project_id: str, task_id: str, date: str, hours: str, 
              bill_status: str, notes: str = "") -> str:
