@@ -554,7 +554,6 @@ class GetAllTimeLogsTool(BaseTool):
             # Use the "Get My Time Logs" API endpoint which gets logs across all projects
             # Build filters based on date range
             filters = {
-                'users_list': 'all',  # Get logs for all users
                 'bill_status': 'All',  # Get both billable and non-billable
                 'component_type': 'task'  # Focus on task logs
             }
