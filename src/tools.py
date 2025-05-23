@@ -9,6 +9,22 @@ from loguru import logger
 
 from .zoho_client import ZohoProjectsClient, ZohoAPIError
 
+_context = threading.local()
+
+
+def set_user_context(user_id: str, user_name: str = ""):
+    """Set the current user context for tools"""
+    _context.user_id = user_id
+    _context.user_name = user_name
+
+
+def get_user_context() -> Dict[str, str]:
+    """Get the current user context"""
+    return {
+        'user_id': getattr(_context, 'user_id', None),
+        'user_name': getattr(_context, 'user_name', '')
+    }
+
 
 # Input schemas for tools
 class ProjectSearchInput(BaseModel):
@@ -551,11 +567,16 @@ class GetAllTimeLogsTool(BaseTool):
     
     def _run(self, limit: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
         try:
+            # Get current user context
+            user_context = get_user_context()
+            current_user_id = user_context.get('user_id')
+            
             # Use the "Get My Time Logs" API endpoint which gets logs across all projects
             # Build filters based on date range
             filters = {
                 'bill_status': 'All',  # Get both billable and non-billable
-                'component_type': 'task'  # Focus on task logs
+                'component_type': 'task',  # Focus on task logs
+                'users_list': current_user_id if current_user_id else 'all'  # Use current user or all if no context
             }
             
             # Handle date filtering

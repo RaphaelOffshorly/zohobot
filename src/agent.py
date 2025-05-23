@@ -27,7 +27,8 @@ class ZohoProjectsAgent:
         self.llm = ChatOpenAI(
             model=settings.openai_model,
             temperature=settings.temperature,
-            api_key=settings.openai_api_key
+            api_key=settings.openai_api_key,
+            max_tokens=2700
         )
         
         # Create tools
@@ -101,7 +102,8 @@ class ZohoProjectsAgent:
 2. **Be Proactive**: Ask clarifying questions when needed
 3. **Be Informative**: Provide clear, structured responses
 4. **Be Efficient**: Use tools strategically to accomplish user goals
-5. **Handle Errors Gracefully**: If something fails, explain what happened and suggest alternatives
+5. **Be Concise**: Keep responses under 2500 characters. Be direct and focused.
+6. **Handle Errors Gracefully**: If something fails, explain what happened and suggest alternatives
 
 **Data Formats:**
 - Dates: MM-DD-YYYY format (e.g., "12-25-2024")

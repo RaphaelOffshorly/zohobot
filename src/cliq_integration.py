@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional, List
 import json
 from loguru import logger
 from datetime import datetime
+from .tools import set_user_context
 
 from .agent import ZohoProjectsAgent
 
@@ -48,7 +49,11 @@ class CliqIntegration:
                 message_text = body.get("text", "").strip()
                 user_info = body.get("user", {})
                 chat_info = body.get("chat", {})
-                
+                # Set user context for tools (ADD THIS)
+                user_id = user_info.get("id")
+                user_name = user_info.get("name", "")
+                if user_id:
+                    set_user_context(user_id, user_name)
                 # Skip if no message text or if it's a bot message
                 if not message_text or user_info.get("is_bot", False):
                     return {"text": ""}
