@@ -222,11 +222,12 @@ class ZohoProjectsClient:
         """Get time logs across all projects using the 'Get My Time Logs' API"""
         endpoint = f"/restapi/portal/{self.portal_id}/logs"
         
-        # Handle custom_date parameter serialization
+        # Handle custom_date parameter serialization with compact JSON
         params = {}
         for key, value in filters.items():
             if key == 'custom_date' and isinstance(value, dict):
-                params[key] = json.dumps(value)
+                # Use compact JSON without spaces to avoid URL encoding issues
+                params[key] = json.dumps(value, separators=(',', ':'))
             else:
                 params[key] = value
         
