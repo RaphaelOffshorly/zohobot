@@ -171,7 +171,7 @@ async def health_check():
     return {"status": "healthy", "agent_ready": agent is not None}
 
 
-def run_server(host: str = "127.0.0.1", port: int = 8000, reload: bool = False):
+def run_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = False):
     """Run the web server"""
     uvicorn.run(
         "src.web_app:app",
