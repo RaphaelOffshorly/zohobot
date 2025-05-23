@@ -218,6 +218,21 @@ class ZohoProjectsClient:
         response = self._make_request("GET", endpoint, params=filters)
         return response.get("timelogs", {})
     
+    def get_my_time_logs(self, **filters) -> Dict[str, Any]:
+        """Get time logs across all projects using the 'Get My Time Logs' API"""
+        endpoint = f"/restapi/portal/{self.portal_id}/logs"
+        
+        # Handle custom_date parameter serialization
+        params = {}
+        for key, value in filters.items():
+            if key == 'custom_date' and isinstance(value, dict):
+                params[key] = json.dumps(value)
+            else:
+                params[key] = value
+        
+        response = self._make_request("GET", endpoint, params=params)
+        return response.get("timelogs", {})
+    
     def get_task_time_logs(self, project_id: str, task_id: str) -> Dict[str, Any]:
         """Get time logs for a specific task"""
         endpoint = f"/restapi/portal/{self.portal_id}/projects/{project_id}/tasks/{task_id}/logs/"

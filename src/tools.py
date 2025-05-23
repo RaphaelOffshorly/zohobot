@@ -551,78 +551,98 @@ class GetAllTimeLogsTool(BaseTool):
     
     def _run(self, limit: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
         try:
-            # Get all projects first
-            projects = self.zoho_client.get_all_projects("all")  # Get both active and archived
+            # Use the "Get My Time Logs" API endpoint which gets logs across all projects
+            # Build filters based on date range
+            filters = {
+                'users_list': 'all',  # Get logs for all users
+                'bill_status': 'All',  # Get both billable and non-billable
+                'component_type': 'task'  # Focus on task logs
+            }
             
-            if not projects:
-                return "No projects found to retrieve time logs from"
+            # Handle date filtering
+            if start_date and end_date:
+                # Use custom_date for date range
+                filters['view_type'] = 'custom_date'
+                filters['custom_date'] = {
+                    "start_date": start_date,
+                    "end_date": end_date
+                }
+            elif start_date:
+                # Use single date
+                filters['view_type'] = 'day'
+                filters['date'] = start_date
+            else:
+                # Default to current week
+                filters['view_type'] = 'week'
+                from datetime import datetime
+                today = datetime.now()
+                filters['date'] = today.strftime('%m-%d-%Y')
             
+            # Apply limit to range if specified
+            if limit:
+                filters['range'] = limit
+            
+            # Get time logs using the cross-project endpoint
+            time_logs = self.zoho_client.get_my_time_logs(**filters)
+            
+            if not time_logs or 'date' not in time_logs:
+                date_filter = ""
+                if start_date or end_date:
+                    date_filter = f" (filtered by date: {start_date or 'any'} to {end_date or 'any'})"
+                return f"No time logs found{date_filter}"
+            
+            # Extract all logs from all date entries
             all_logs = []
-            total_projects_checked = 0
-            
-            # Iterate through all projects and collect time logs
-            for project in projects:
-                try:
-                    project_id = project.get('id')
-                    project_name = project.get('name', 'Unknown')
-                    
-                    # Build filters
-                    filters = {}
-                    if start_date:
-                        filters['date'] = start_date
-                    if end_date:
-                        filters['end_date'] = end_date
-                    
-                    # Get time logs for this project
-                    time_logs = self.zoho_client.get_time_logs(project_id, **filters)
-                    project_logs = time_logs.get('tasklogs', [])
-                    
-                    # Add project info to each log
-                    for log in project_logs:
-                        log['project_name'] = project_name
-                        log['project_id'] = project_id
-                        all_logs.append(log)
-                    
-                    total_projects_checked += 1
-                    
-                except Exception as e:
-                    # Continue if one project fails
-                    logger.warning(f"Failed to get time logs for project {project.get('id', 'unknown')}: {e}")
-                    continue
+            for date_entry in time_logs.get('date', []):
+                tasklogs = date_entry.get('tasklogs', [])
+                for log in tasklogs:
+                    # Add date info to each log
+                    log['log_date'] = date_entry.get('date', 'Unknown')
+                    all_logs.append(log)
             
             if not all_logs:
                 date_filter = ""
                 if start_date or end_date:
                     date_filter = f" (filtered by date: {start_date or 'any'} to {end_date or 'any'})"
-                return f"No time logs found across {total_projects_checked} projects{date_filter}"
+                return f"No time logs found{date_filter}"
             
             # Sort by date (most recent first)
             all_logs.sort(key=lambda x: x.get('log_date', ''), reverse=True)
             
-            # Apply limit if specified
-            if limit:
+            # Apply limit if specified and not already applied to API call
+            if limit and 'range' not in filters:
                 all_logs = all_logs[:limit]
             
-            # Calculate total hours
-            total_hours_sum = 0
-            for log in all_logs:
-                hours_str = log.get('hours_display', '0:00')
-                try:
-                    if ':' in hours_str:
-                        hours, minutes = hours_str.split(':')
-                        total_hours_sum += int(hours) + (int(minutes) / 60)
-                except:
-                    pass
+            # Calculate total hours from the API response
+            total_hours = time_logs.get('grandtotal', '0:00')
+            billable_hours = time_logs.get('billable_hours', '0:00')
+            non_billable_hours = time_logs.get('non_billable_hours', '0:00')
             
-            result = f"Found {len(all_logs)} time logs across {total_projects_checked} projects:\n\n"
-            result += f"**Total Time Logged:** {total_hours_sum:.2f} hours\n\n"
+            result = f"Found {len(all_logs)} time logs:\n\n"
+            result += f"**Total Time Logged:** {total_hours}\n"
+            result += f"**Billable:** {billable_hours} | **Non-Billable:** {non_billable_hours}\n\n"
             
             for log in all_logs:
                 result += f"• **{log.get('hours_display', '0:00')}** on {log.get('log_date', 'Unknown')}\n"
-                result += f"  Project: {log.get('project_name', 'Unknown')} (ID: {log.get('project_id', 'N/A')})\n"
-                result += f"  Task: {log.get('task_name', 'Unknown')} (ID: {log.get('task_id', 'N/A')})\n"
+                
+                # Get project info
+                project_info = log.get('project', {})
+                if project_info:
+                    result += f"  Project: {project_info.get('name', 'Unknown')} (ID: {project_info.get('id', 'N/A')})\n"
+                else:
+                    result += f"  Project: Unknown\n"
+                
+                # Get task info
+                task_info = log.get('task', {})
+                if task_info:
+                    result += f"  Task: {task_info.get('name', 'Unknown')} (ID: {task_info.get('id', 'N/A')})\n"
+                else:
+                    result += f"  Task: Unknown\n"
+                
                 result += f"  Owner: {log.get('owner_name', 'Unknown')}\n"
                 result += f"  Status: {log.get('bill_status', 'Unknown')}\n"
+                result += f"  Approval: {log.get('approval_status', 'Unknown')}\n"
+                
                 if log.get('notes'):
                     result += f"  Notes: {log['notes'][:50]}...\n"
                 result += "\n"
