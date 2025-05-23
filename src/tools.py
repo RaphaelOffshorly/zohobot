@@ -14,6 +14,13 @@ from .zoho_client import ZohoProjectsClient, ZohoAPIError
 class ProjectSearchInput(BaseModel):
     """Input for project search tool"""
     query: str = Field(description="Search query for project name")
+    limit: Optional[int] = Field(default=None, description="Maximum number of results to return (default: no limit)")
+
+
+class ListAllProjectsInput(BaseModel):
+    """Input for listing all projects"""
+    status: Optional[str] = Field(default="active", description="Project status: active, archived, or all")
+    limit: Optional[int] = Field(default=None, description="Maximum number of results to return (default: no limit)")
 
 
 class ProjectDetailsInput(BaseModel):
@@ -33,6 +40,7 @@ class TaskSearchInput(BaseModel):
     """Input for task search tool"""
     project_id: str = Field(description="ID of the project to search tasks in")
     query: str = Field(description="Search query for task name")
+    limit: Optional[int] = Field(default=None, description="Maximum number of results to return (default: no limit)")
 
 
 class TaskDetailsInput(BaseModel):
@@ -78,6 +86,14 @@ class TimeLogInput(BaseModel):
     """Input for time log operations"""
     project_id: str = Field(description="ID of the project")
     task_id: str = Field(description="ID of the task")
+    limit: Optional[int] = Field(default=None, description="Maximum number of results to return (default: no limit)")
+
+
+class AllTimeLogsInput(BaseModel):
+    """Input for getting all time logs across projects"""
+    limit: Optional[int] = Field(default=None, description="Maximum number of results to return (default: no limit)")
+    start_date: Optional[str] = Field(default=None, description="Start date filter in MM-DD-YYYY format")
+    end_date: Optional[str] = Field(default=None, description="End date filter in MM-DD-YYYY format")
 
 
 class AddTimeLogInput(BaseModel):
@@ -91,6 +107,43 @@ class AddTimeLogInput(BaseModel):
 
 
 # Tool implementations
+class ListAllProjectsTool(BaseTool):
+    """Tool to list all projects"""
+    name: str = "list_all_projects"
+    description: str = "List all projects in the portal. No search query required - returns all projects."
+    args_schema: Type[BaseModel] = ListAllProjectsInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
+    
+    def __init__(self, zoho_client: ZohoProjectsClient):
+        super().__init__(zoho_client=zoho_client)
+    
+    def _run(self, status: str = "active", limit: Optional[int] = None) -> str:
+        try:
+            projects = self.zoho_client.get_all_projects(status)
+            if not projects:
+                return f"No {status} projects found"
+            
+            # Apply limit if specified
+            if limit:
+                projects = projects[:limit]
+            
+            result = f"Found {len(projects)} {status} projects:\n\n"
+            for project in projects:
+                result += f"• **{project.get('name', 'Unknown')}** (ID: {project.get('id', 'N/A')})\n"
+                result += f"  Status: {project.get('status', 'Unknown')}\n"
+                if project.get('description'):
+                    result += f"  Description: {project['description'][:100]}...\n"
+                result += "\n"
+            
+            if len(projects) == limit and limit:
+                result += f"(Showing first {limit} results)\n"
+            
+            return result
+        except ZohoAPIError as e:
+            logger.error(f"Error listing projects: {e}")
+            return f"Error listing projects: {str(e)}"
+
+
 class ProjectSearchTool(BaseTool):
     """Tool to search for projects"""
     name: str = "search_projects"
@@ -101,19 +154,26 @@ class ProjectSearchTool(BaseTool):
     def __init__(self, zoho_client: ZohoProjectsClient):
         super().__init__(zoho_client=zoho_client)
     
-    def _run(self, query: str) -> str:
+    def _run(self, query: str, limit: Optional[int] = None) -> str:
         try:
             projects = self.zoho_client.search_projects(query)
             if not projects:
                 return f"No projects found matching '{query}'"
             
+            # Apply limit if specified
+            if limit:
+                projects = projects[:limit]
+            
             result = f"Found {len(projects)} projects matching '{query}':\n\n"
-            for project in projects[:5]:  # Limit to top 5 results
+            for project in projects:
                 result += f"• **{project.get('name', 'Unknown')}** (ID: {project.get('id', 'N/A')})\n"
                 result += f"  Status: {project.get('status', 'Unknown')}\n"
                 if project.get('description'):
                     result += f"  Description: {project['description'][:100]}...\n"
                 result += "\n"
+            
+            if len(projects) == limit and limit:
+                result += f"(Showing first {limit} results)\n"
             
             return result
         except ZohoAPIError as e:
@@ -214,19 +274,26 @@ class TaskSearchTool(BaseTool):
     def __init__(self, zoho_client: ZohoProjectsClient):
         super().__init__(zoho_client=zoho_client)
     
-    def _run(self, project_id: str, query: str) -> str:
+    def _run(self, project_id: str, query: str, limit: Optional[int] = None) -> str:
         try:
             tasks = self.zoho_client.search_tasks(project_id, query)
             if not tasks:
                 return f"No tasks found matching '{query}' in project {project_id}"
             
+            # Apply limit if specified
+            if limit:
+                tasks = tasks[:limit]
+            
             result = f"Found {len(tasks)} tasks matching '{query}':\n\n"
-            for task in tasks[:5]:  # Limit to top 5 results
+            for task in tasks:
                 result += f"• **{task.get('name', 'Unknown')}** (ID: {task.get('id', 'N/A')})\n"
                 result += f"  Status: {task.get('status', {}).get('name', 'Unknown')}\n"
                 result += f"  Priority: {task.get('priority', 'None')}\n"
                 result += f"  Completion: {task.get('percent_complete', '0')}%\n"
                 result += "\n"
+            
+            if len(tasks) == limit and limit:
+                result += f"(Showing first {limit} results)\n"
             
             return result
         except ZohoAPIError as e:
@@ -439,7 +506,7 @@ class GetTimeLogsTool(BaseTool):
     def __init__(self, zoho_client: ZohoProjectsClient):
         super().__init__(zoho_client=zoho_client)
     
-    def _run(self, project_id: str, task_id: str) -> str:
+    def _run(self, project_id: str, task_id: str, limit: Optional[int] = None) -> str:
         try:
             time_logs = self.zoho_client.get_task_time_logs(project_id, task_id)
             tasklogs = time_logs.get('tasklogs', [])
@@ -447,11 +514,15 @@ class GetTimeLogsTool(BaseTool):
             if not tasklogs:
                 return f"No time logs found for task {task_id}"
             
+            # Apply limit if specified
+            if limit:
+                tasklogs = tasklogs[:limit]
+            
             result = f"Found {len(tasklogs)} time logs:\n\n"
             total_hours = time_logs.get('total_log_hours', '0:00')
             result += f"**Total Time:** {total_hours}\n\n"
             
-            for log in tasklogs[:10]:  # Limit to 10 most recent
+            for log in tasklogs:
                 result += f"• **{log.get('hours_display', '0:00')}** on {log.get('log_date', 'Unknown')}\n"
                 result += f"  Owner: {log.get('owner_name', 'Unknown')}\n"
                 result += f"  Status: {log.get('bill_status', 'Unknown')}\n"
@@ -459,10 +530,110 @@ class GetTimeLogsTool(BaseTool):
                     result += f"  Notes: {log['notes'][:50]}...\n"
                 result += "\n"
             
+            if len(tasklogs) == limit and limit:
+                result += f"(Showing first {limit} results)\n"
+            
             return result
         except ZohoAPIError as e:
             logger.error(f"Error getting time logs: {e}")
             return f"Error getting time logs: {str(e)}"
+
+
+class GetAllTimeLogsTool(BaseTool):
+    """Tool to get ALL time logs across all projects"""
+    name: str = "get_all_time_logs"
+    description: str = "Get ALL time logs across all projects, regardless of project. This allows you to retrieve all your time tracking data."
+    args_schema: Type[BaseModel] = AllTimeLogsInput
+    zoho_client: ZohoProjectsClient = Field(exclude=True)
+    
+    def __init__(self, zoho_client: ZohoProjectsClient):
+        super().__init__(zoho_client=zoho_client)
+    
+    def _run(self, limit: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
+        try:
+            # Get all projects first
+            projects = self.zoho_client.get_all_projects("all")  # Get both active and archived
+            
+            if not projects:
+                return "No projects found to retrieve time logs from"
+            
+            all_logs = []
+            total_projects_checked = 0
+            
+            # Iterate through all projects and collect time logs
+            for project in projects:
+                try:
+                    project_id = project.get('id')
+                    project_name = project.get('name', 'Unknown')
+                    
+                    # Build filters
+                    filters = {}
+                    if start_date:
+                        filters['date'] = start_date
+                    if end_date:
+                        filters['end_date'] = end_date
+                    
+                    # Get time logs for this project
+                    time_logs = self.zoho_client.get_time_logs(project_id, **filters)
+                    project_logs = time_logs.get('tasklogs', [])
+                    
+                    # Add project info to each log
+                    for log in project_logs:
+                        log['project_name'] = project_name
+                        log['project_id'] = project_id
+                        all_logs.append(log)
+                    
+                    total_projects_checked += 1
+                    
+                except Exception as e:
+                    # Continue if one project fails
+                    logger.warning(f"Failed to get time logs for project {project.get('id', 'unknown')}: {e}")
+                    continue
+            
+            if not all_logs:
+                date_filter = ""
+                if start_date or end_date:
+                    date_filter = f" (filtered by date: {start_date or 'any'} to {end_date or 'any'})"
+                return f"No time logs found across {total_projects_checked} projects{date_filter}"
+            
+            # Sort by date (most recent first)
+            all_logs.sort(key=lambda x: x.get('log_date', ''), reverse=True)
+            
+            # Apply limit if specified
+            if limit:
+                all_logs = all_logs[:limit]
+            
+            # Calculate total hours
+            total_hours_sum = 0
+            for log in all_logs:
+                hours_str = log.get('hours_display', '0:00')
+                try:
+                    if ':' in hours_str:
+                        hours, minutes = hours_str.split(':')
+                        total_hours_sum += int(hours) + (int(minutes) / 60)
+                except:
+                    pass
+            
+            result = f"Found {len(all_logs)} time logs across {total_projects_checked} projects:\n\n"
+            result += f"**Total Time Logged:** {total_hours_sum:.2f} hours\n\n"
+            
+            for log in all_logs:
+                result += f"• **{log.get('hours_display', '0:00')}** on {log.get('log_date', 'Unknown')}\n"
+                result += f"  Project: {log.get('project_name', 'Unknown')} (ID: {log.get('project_id', 'N/A')})\n"
+                result += f"  Task: {log.get('task_name', 'Unknown')} (ID: {log.get('task_id', 'N/A')})\n"
+                result += f"  Owner: {log.get('owner_name', 'Unknown')}\n"
+                result += f"  Status: {log.get('bill_status', 'Unknown')}\n"
+                if log.get('notes'):
+                    result += f"  Notes: {log['notes'][:50]}...\n"
+                result += "\n"
+            
+            if len(all_logs) == limit and limit:
+                result += f"(Showing first {limit} results)\n"
+            
+            return result
+        except ZohoAPIError as e:
+            logger.error(f"Error getting all time logs: {e}")
+            return f"Error getting all time logs: {str(e)}"
 
 
 class AddTimeLogTool(BaseTool):
@@ -505,6 +676,7 @@ class AddTimeLogTool(BaseTool):
 def create_zoho_tools(zoho_client: ZohoProjectsClient) -> List[BaseTool]:
     """Create all Zoho tools with the given client"""
     return [
+        ListAllProjectsTool(zoho_client),
         ProjectSearchTool(zoho_client),
         ProjectDetailsTool(zoho_client),
         CreateProjectTool(zoho_client),
@@ -515,5 +687,6 @@ def create_zoho_tools(zoho_client: ZohoProjectsClient) -> List[BaseTool]:
         GetTaskListsTool(zoho_client),
         CreateTaskListTool(zoho_client),
         GetTimeLogsTool(zoho_client),
+        GetAllTimeLogsTool(zoho_client),
         AddTimeLogTool(zoho_client),
     ]
