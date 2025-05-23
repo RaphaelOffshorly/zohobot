@@ -130,14 +130,8 @@ Always be helpful, accurate, and provide actionable information. If you're unsur
             # Log the incoming message
             logger.info(f"User message: {message}")
             
-            # Get current timestamp for context
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            
-            # Prepare the input with context
-            input_data = {
-                "input": message,
-                "current_time": current_time
-            }
+            # Prepare the input - only pass what the prompt expects
+            input_data = {"input": message}
             
             # Execute the agent
             result = self.agent_executor.invoke(input_data)
