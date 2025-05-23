@@ -53,11 +53,12 @@ class CliqIntegration:
                 if not message_text or user_info.get("is_bot", False):
                     return {"text": ""}
                 
-                # Check if bot is mentioned or if it's a direct message
+                # Check if bot is mentioned, if it's a direct message, or if it's a bot conversation
                 bot_mentioned = self._is_bot_mentioned(message_text, body)
                 is_direct_message = chat_info.get("type") == "direct"
+                is_bot_conversation = chat_info.get("type") == "bot"
                 
-                if not (bot_mentioned or is_direct_message):
+                if not (bot_mentioned or is_direct_message or is_bot_conversation):
                     return {"text": ""}
                 
                 # Clean the message (remove bot mentions)
